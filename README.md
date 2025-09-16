@@ -47,7 +47,7 @@ An autonomous AI-powered email management system designed specifically for unive
 
 ## 🤖 AI Models & Training
 
-> **🔥 IMPORTANT:** Your trained models now do the heavy lifting, with Gemini handling orchestration!
+> **🔥 IMPORTANT:** Trained models now do the heavy lifting, with Gemini handling orchestration!
 
 ### Model 1: Email Classifier (DistilBERT) - **PRIMARY CLASSIFIER**
 - **Base Model**: `distilbert-base-uncased`
