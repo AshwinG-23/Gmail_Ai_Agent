@@ -54,7 +54,7 @@ class Config:
     URGENT_NOTIFICATION_WEBHOOK: str = os.getenv("URGENT_NOTIFICATION_WEBHOOK", "")
     
     # Security
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
+    SECRET_KEY: str = os.getenv("GENERIC_SECRET_PLACEHOLDER)
     
     # Development
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
