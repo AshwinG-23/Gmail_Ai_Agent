@@ -1,0 +1,105 @@
+{
+  "system": {
+    "name": "Email Management System",
+    "version": "1.0.0",
+    "description": "AI-powered email classification, processing, and automation"
+  },
+  "backend": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "debug": true,
+    "log_level": "INFO"
+  },
+  "models": {
+    "classifier": {
+      "path": "Model_1/my-final-email-classifier",
+      "type": "distilbert",
+      "categories": [
+        "1. Urgent",
+        "2. Conference/Academic Events", 
+        "3. Job Recruitment",
+        "4. Promotions/Newsletters",
+        "5. Administrative/Official Notices",
+        "6. Peer/Group Communications",
+        "7. Other/Miscellaneous",
+        "8. Classroom"
+      ]
+    },
+    "extractor": {
+      "path": "Model_2/my-final-llama3-extractor",
+      "type": "llama3-lora",
+      "base_model": "meta-llama/Meta-Llama-3-8B-Instruct"
+    }
+  },
+  "gmail": {
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.modify",
+      "https://www.googleapis.com/auth/gmail.labels",
+      "https://www.googleapis.com/auth/gmail.send"
+    ],
+    "credentials_file": "credentials.json",
+    "token_file": "token.json"
+  },
+  "calendar": {
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar"
+    ],
+    "default_duration_hours": 1
+  },
+  "sheets": {
+    "scopes": [
+      "https://www.googleapis.com/auth/spreadsheets"
+    ],
+    "job_tracker_name": "Email Management - Job Tracker"
+  },
+  "reminders": {
+    "default_hours_before": 3,
+    "max_reminders": 100,
+    "cleanup_interval_hours": 24
+  },
+  "chrome_extension": {
+    "name": "Email Management Assistant",
+    "version": "1.0.0",
+    "permissions": [
+      "activeTab",
+      "storage", 
+      "tabs",
+      "scripting"
+    ],
+    "host_permissions": [
+      "https://mail.google.com/*",
+      "http://localhost:8000/*"
+    ]
+  },
+  "actions": {
+    "urgent": {
+      "enabled": true,
+      "notification": true,
+      "extract_fields": ["reason", "sender"]
+    },
+    "conference": {
+      "enabled": true,
+      "add_to_calendar": true,
+      "extract_fields": ["event_name", "date", "location"]
+    },
+    "job_recruitment": {
+      "enabled": true,
+      "add_to_sheets": true,
+      "extract_fields": ["company_name", "job_title", "application_link"]
+    },
+    "administrative": {
+      "enabled": true,
+      "schedule_reminder": true,
+      "extract_fields": ["due_date", "document_type"]
+    },
+    "promotions": {
+      "enabled": true,
+      "auto_archive": true
+    },
+    "other": {
+      "enabled": true,
+      "auto_archive": true
+    }
+  }
+}

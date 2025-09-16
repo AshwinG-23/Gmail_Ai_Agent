@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Email Agent - Style Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Google Sans', Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #202124;
+            line-height: 1.5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #1a73e8;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            color: #5f6368;
+            font-size: 16px;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section h2 {
+            color: #1a73e8;
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+        
+        .profiles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+        }
+        
+        .profile-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            background: #f8f9fa;
+            transition: box-shadow 0.2s;
+        }
+        
+        .profile-card:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .profile-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .profile-email {
+            font-weight: 500;
+            color: #1a73e8;
+            font-size: 14px;
+        }
+        
+        .profile-stats {
+            font-size: 12px;
+            color: #5f6368;
+        }
+        
+        .profile-details {
+            margin-bottom: 12px;
+        }
+        
+        .profile-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+        
+        .profile-item .label {
+            color: #5f6368;
+        }
+        
+        .profile-item .value {
+            color: #202124;
+            font-weight: 500;
+        }
+        
+        .profile-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        
+        .btn-primary {
+            background: #1a73e8;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1557b0;
+        }
+        
+        .btn-secondary {
+            background: #f1f3f4;
+            color: #3c4043;
+            border: 1px solid #dadce0;
+        }
+        
+        .btn-secondary:hover {
+            background: #e8eaed;
+        }
+        
+        .btn-danger {
+            background: #ea4335;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #d33b2c;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #5f6368;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 8px;
+            color: #3c4043;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #1a73e8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #fce8e6;
+            color: #d93025;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+        
+        .success {
+            background: #e8f5e8;
+            color: #137333;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .search-box {
+            flex: 1;
+            max-width: 300px;
+            padding: 8px 12px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 1px #1a73e8;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        @media (max-width: 768px) {
+            .profiles-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+                gap: 12px;
+                align-items: stretch;
+            }
+            
+            .search-box {
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Email Agent - Style Manager</h1>
+            <p>Manage your personalized email writing styles for different recipients</p>
+        </div>
+        
+        <div class="section">
+            <div class="controls">
+                <input type="text" id="search" class="search-box" placeholder="Search recipients...">
+                <div class="actions">
+                    <button id="refresh" class="btn btn-secondary">Refresh</button>
+                    <button id="export-styles" class="btn btn-primary">Export Styles</button>
+                </div>
+            </div>
+            
+            <div id="error" class="error" style="display: none;"></div>
+            <div id="success" class="success" style="display: none;"></div>
+            
+            <h2>📧 Email Style Profiles</h2>
+            
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Loading style profiles...</p>
+            </div>
+            
+            <div id="empty-state" class="empty-state" style="display: none;">
+                <h3>No Style Profiles Found</h3>
+                <p>Style profiles are automatically created when you generate AI email drafts.</p>
+                <p>Go to Gmail and use the AI Draft button to create your first profile!</p>
+            </div>
+            
+            <div id="profiles-container" class="profiles-grid" style="display: none;">
+                <!-- Profiles will be loaded here dynamically -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        console.log('Style Manager loaded');
+        
+        let allProfiles = [];
+        let filteredProfiles = [];
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStyleProfiles();
+            setupEventListeners();
+        });
+        
+        function setupEventListeners() {
+            document.getElementById('refresh').addEventListener('click', loadStyleProfiles);
+            document.getElementById('export-styles').addEventListener('click', exportStyles);
+            document.getElementById('search').addEventListener('input', handleSearch);
+        }
+        
+        async function loadStyleProfiles() {
+            console.log('Loading style profiles...');
+            
+            showLoading(true);
+            hideError();
+            hideSuccess();
+            
+            try {
+                // Since this is a separate page, we need to make direct API calls
+                const response = await fetch('http://localhost:8000/api/chrome/settings');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                // For now, show a placeholder since we don't have a direct API to get all profiles
+                // In a real implementation, you'd add an API endpoint to list all style profiles
+                showEmptyState();
+                
+            } catch (error) {
+                console.error('Failed to load style profiles:', error);
+                showError('Failed to connect to AI Agent backend. Make sure the server is running on localhost:8000');
+                showEmptyState();
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('profiles-container').style.display = show ? 'none' : 'block';
+            document.getElementById('empty-state').style.display = 'none';
+        }
+        
+        function showEmptyState() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('profiles-container').style.display = 'none';
+            document.getElementById('empty-state').style.display = 'block';
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+        
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+        
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+        
+        function hideSuccess() {
+            document.getElementById('success').style.display = 'none';
+        }
+        
+        function renderProfiles(profiles) {
+            const container = document.getElementById('profiles-container');
+            container.innerHTML = '';
+            
+            if (profiles.length === 0) {
+                showEmptyState();
+                return;
+            }
+            
+            container.style.display = 'grid';
+            document.getElementById('empty-state').style.display = 'none';
+            
+            profiles.forEach(profile => {
+                const card = createProfileCard(profile);
+                container.appendChild(card);
+            });
+        }
+        
+        function createProfileCard(profile) {
+            const card = document.createElement('div');
+            card.className = 'profile-card';
+            
+            card.innerHTML = `
+                <div class="profile-header">
+                    <div class="profile-email">${profile.recipient}</div>
+                    <div class="profile-stats">${profile.sample_count || 0} emails</div>
+                </div>
+                
+                <div class="profile-details">
+                    <div class="profile-item">
+                        <span class="label">Greeting:</span>
+                        <span class="value">${profile.greeting || 'Default'}</span>
+                    </div>
+                    <div class="profile-item">
+                        <span class="label">Formality:</span>
+                        <span class="value">${profile.formality || 'formal'}</span>
+                    </div>
+                    <div class="profile-item">
+                        <span class="label">Tone:</span>
+                        <span class="value">${profile.tone || 'professional'}</span>
+                    </div>
+                    <div class="profile-item">
+                        <span class="label">Sign-off:</span>
+                        <span class="value">${profile.signoff || 'Best regards,'}</span>
+                    </div>
+                </div>
+                
+                <div class="profile-actions">
+                    <button class="btn btn-primary" onclick="updateProfile('${profile.recipient}')">
+                        Update
+                    </button>
+                    <button class="btn btn-secondary" onclick="testProfile('${profile.recipient}')">
+                        Test
+                    </button>
+                    <button class="btn btn-danger" onclick="deleteProfile('${profile.recipient}')">
+                        Delete
+                    </button>
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        function handleSearch(event) {
+            const query = event.target.value.toLowerCase();
+            
+            if (!query) {
+                filteredProfiles = allProfiles;
+            } else {
+                filteredProfiles = allProfiles.filter(profile =>
+                    profile.recipient.toLowerCase().includes(query)
+                );
+            }
+            
+            renderProfiles(filteredProfiles);
+        }
+        
+        async function updateProfile(recipient) {
+            console.log('Updating profile for:', recipient);
+            
+            try {
+                const response = await fetch(`http://localhost:8000/api/chrome/style-profile/${encodeURIComponent(recipient)}/update`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    showSuccess(`Style profile updated for ${recipient}`);
+                    loadStyleProfiles(); // Refresh the list
+                } else {
+                    throw new Error('Update failed');
+                }
+            } catch (error) {
+                console.error('Update failed:', error);
+                showError(`Failed to update profile for ${recipient}`);
+            }
+        }
+        
+        function testProfile(recipient) {
+            console.log('Testing profile for:', recipient);
+            // Open Gmail compose with this recipient
+            window.open(`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(recipient)}`, '_blank');
+        }
+        
+        async function deleteProfile(recipient) {
+            if (!confirm(`Are you sure you want to delete the style profile for ${recipient}?`)) {
+                return;
+            }
+            
+            console.log('Deleting profile for:', recipient);
+            // Note: This would require implementing a delete endpoint in the backend
+            showError('Delete functionality not yet implemented');
+        }
+        
+        async function exportStyles() {
+            console.log('Exporting styles...');
+            
+            try {
+                const exportData = {
+                    exported_at: new Date().toISOString(),
+                    profiles: allProfiles,
+                    count: allProfiles.length
+                };
+                
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+                    type: 'application/json'
+                });
+                
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `email_styles_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showSuccess('Style profiles exported successfully');
+                
+            } catch (error) {
+                console.error('Export failed:', error);
+                showError('Failed to export style profiles');
+            }
+        }
+        
+        // Add some sample data for demonstration
+        setTimeout(() => {
+            allProfiles = [
+                {
+                    recipient: "prof.smith@university.edu",
+                    greeting: "Respected Prof. Smith,",
+                    formality: "formal",
+                    tone: "academic",
+                    signoff: "Respectfully yours,",
+                    sentence_style: "medium-length",
+                    sample_count: 15,
+                    last_updated: "2025-01-10"
+                },
+                {
+                    recipient: "advisor@iitgoa.ac.in",
+                    greeting: "Dear Sir,",
+                    formality: "formal",
+                    tone: "respectful",
+                    signoff: "Regards,",
+                    sentence_style: "medium-length",
+                    sample_count: 8,
+                    last_updated: "2025-01-08"
+                }
+            ];
+            filteredProfiles = allProfiles;
+            
+            // Show the profiles
+            document.getElementById('loading').style.display = 'none';
+            renderProfiles(filteredProfiles);
+        }, 2000); // Simulate loading delay
+    </script>
+</body>
+</html>

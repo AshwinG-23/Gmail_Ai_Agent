@@ -1,0 +1,37 @@
+# AI Email Agent - Basic .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Environment variables
+.env
+.env.local
+
+# Google API credentials
+credentials.json
+token.json
+*token*
+gmail_token.json
+calendar_token.json
+sheets_token.json
+
+# Application data & logs
+data/
+*.log
+agent_logs.json
+
+# Model files (too large for git)
+Model_1/my-final-email-classifier/
+Model_1/email-classifier-results/
+Model_2/my-final-llama3-extractor/
+Model_2/llama3-extractor-results/
+
+# System files
+.DS_Store
+Thumbs.db
+
+
+#other large files
