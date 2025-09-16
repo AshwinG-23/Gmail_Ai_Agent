@@ -1181,6 +1181,60 @@ class EmailTool(BaseTool):
                     action_name=action
                 )
             
+            elif action == "send":
+                recipient = parameters.get("recipient")
+                subject = parameters.get("subject", "Email from AI Agent")
+                body = parameters.get("body", "")
+                
+                if not recipient or not body:
+                    return ToolResult(
+                        success=False,
+                        data={},
+                        message="recipient and body are required for sending emails",
+                        tool_name=self.name,
+                        action_name=action
+                    )
+                
+                try:
+                    import email.mime.text
+                    import base64
+                    
+                    # Create email message
+                    message = email.mime.text.MIMEText(body)
+                    message['to'] = recipient
+                    message['subject'] = subject
+                    
+                    # Encode message
+                    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+                    
+                    # Send email
+                    sent_message = service.users().messages().send(
+                        userId='me',
+                        body={'raw': raw_message}
+                    ).execute()
+                    
+                    return ToolResult(
+                        success=True,
+                        data={
+                            "message_id": sent_message['id'],
+                            "recipient": recipient,
+                            "subject": subject,
+                            "thread_id": sent_message.get('threadId')
+                        },
+                        message=f"Email sent successfully to {recipient}",
+                        tool_name=self.name,
+                        action_name=action
+                    )
+                    
+                except Exception as e:
+                    return ToolResult(
+                        success=False,
+                        data={},
+                        message=f"Failed to send email: {str(e)}",
+                        tool_name=self.name,
+                        action_name=action
+                    )
+            
             return ToolResult(
                 success=False,
                 data={},
@@ -1233,15 +1287,73 @@ class NotificationTool(BaseTool):
             recipient = parameters.get("recipient", self.config.NOTIFICATION_EMAIL)
             urgency_level = parameters.get("urgency_level", "medium")
             
-            # For now, we'll simulate notification sending
-            # In a real implementation, integrate with email, SMS, or webhook services
-            
             notification_id = f"notif_{int(time.time())}_{action}"
             
-            # Log the notification (in a real system, send actual notification)
-            print(f"NOTIFICATION [{urgency_level.upper()}]: {message}")
-            if recipient:
-                print(f"TO: {recipient}")
+            # Try to send actual email notification using Gmail API
+            try:
+                if recipient:
+                    # Create email subject based on urgency
+                    subject_prefix = "🚨 URGENT" if urgency_level == "high" else "📧 Notification"
+                    subject = f"{subject_prefix}: AI Email Agent Alert"
+                    
+                    # Create email body
+                    email_body = f"""
+{message}
+
+---
+This notification was sent by your AI Email Agent.
+Urgency Level: {urgency_level.upper()}
+Notification ID: {notification_id}
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                    """.strip()
+                    
+                    # Send email using direct Gmail service
+                    try:
+                        import email.mime.text
+                        import base64
+                        
+                        # Get Gmail service
+                        gmail_service = get_google_service(
+                            "gmail", "v1",
+                            self.config.GMAIL_SCOPES,
+                            self.config.GMAIL_TOKEN_FILE,
+                            self.config.GMAIL_CREDENTIALS_FILE
+                        )
+                        
+                        if gmail_service:
+                            # Create email message
+                            mime_message = email.mime.text.MIMEText(email_body)
+                            mime_message['to'] = recipient
+                            mime_message['subject'] = subject
+                            
+                            # Encode message
+                            raw_message = base64.urlsafe_b64encode(mime_message.as_bytes()).decode()
+                            
+                            # Send email
+                            sent_message = gmail_service.users().messages().send(
+                                userId='me',
+                                body={'raw': raw_message}
+                            ).execute()
+                            
+                            print(f"✅ EMAIL SENT: {subject} to {recipient}")
+                            delivery_status = "sent"
+                        else:
+                            print(f"⚠️ Gmail service not available")
+                            delivery_status = "service_unavailable"
+                            
+                    except Exception as email_error:
+                        print(f"⚠️ EMAIL SEND FAILED: {str(email_error)}")
+                        delivery_status = "failed"
+                        
+                else:
+                    print(f"⚠️ NOTIFICATION SKIPPED: No recipient configured")
+                    print(f"NOTIFICATION [{urgency_level.upper()}]: {message}")
+                    delivery_status = "logged_only"
+                    
+            except Exception as e:
+                print(f"❌ NOTIFICATION ERROR: {str(e)}")
+                print(f"FALLBACK LOG [{urgency_level.upper()}]: {message}")
+                delivery_status = "error_logged"
             
             return ToolResult(
                 success=True,
@@ -1250,9 +1362,9 @@ class NotificationTool(BaseTool):
                     "message": message,
                     "recipient": recipient,
                     "urgency_level": urgency_level,
-                    "delivery_status": "sent"
+                    "delivery_status": delivery_status
                 },
-                message=f"Sent {action} notification",
+                message=f"Processed {action} notification (status: {delivery_status})",
                 tool_name=self.name,
                 action_name=action
             )
@@ -1296,11 +1408,141 @@ class ReminderTool(BaseTool):
     @property
     def description(self) -> str:
         return """
-        Creates and manages reminders:
-        - Actions: create, list, complete, delete
+        Creates and manages automated reminders with email notifications:
+        - Actions: create, list, check_reminders, complete, delete
         - Parameters: title, due_date, description, priority
         - Returns: reminder_id and reminder details
+        - Automatically sends email reminders before deadlines based on HOURS_BEFORE_REMINDER setting
         """
+    
+    def _calculate_reminder_time(self, due_date_str: str) -> Optional[str]:
+        """Calculate when to send reminder based on due date and HOURS_BEFORE_REMINDER"""
+        try:
+            from dateutil import parser
+            import pytz
+            
+            # Parse due date
+            due_date = parser.parse(due_date_str)
+            
+            # If no timezone info, assume UTC
+            if due_date.tzinfo is None:
+                due_date = due_date.replace(tzinfo=pytz.UTC)
+            
+            # Calculate reminder time by subtracting configured hours
+            reminder_time = due_date - timedelta(hours=self.config.HOURS_BEFORE_REMINDER)
+            
+            return reminder_time.isoformat()
+        except Exception as e:
+            print(f"Failed to calculate reminder time for {due_date_str}: {e}")
+            return None
+    
+    async def _send_reminder_email(self, reminder: dict) -> bool:
+        """Send reminder email using NotificationTool"""
+        try:
+            # Create reminder email content
+            message = f"""
+⏰ REMINDER: {reminder['title']}
+
+Due Date: {reminder['due_date']}
+Priority: {reminder['priority'].upper()}
+
+Description:
+{reminder.get('description', 'No description provided')}
+
+⚠️ This reminder was automatically sent {self.config.HOURS_BEFORE_REMINDER} hours before your deadline.
+            """.strip()
+            
+            # Use direct Gmail service to send email
+            import email.mime.text
+            import base64
+            
+            recipient = self.config.NOTIFICATION_EMAIL
+            if not recipient:
+                print(f"⚠️ No notification email configured for reminder: {reminder['title']}")
+                return False
+            
+            # Get Gmail service
+            gmail_service = get_google_service(
+                "gmail", "v1",
+                self.config.GMAIL_SCOPES,
+                self.config.GMAIL_TOKEN_FILE,
+                self.config.GMAIL_CREDENTIALS_FILE
+            )
+            
+            if gmail_service:
+                # Create email message
+                subject = f"⏰ REMINDER: {reminder['title']}"
+                mime_message = email.mime.text.MIMEText(message)
+                mime_message['to'] = recipient
+                mime_message['subject'] = subject
+                
+                # Encode message
+                raw_message = base64.urlsafe_b64encode(mime_message.as_bytes()).decode()
+                
+                # Send email
+                sent_message = gmail_service.users().messages().send(
+                    userId='me',
+                    body={'raw': raw_message}
+                ).execute()
+                
+                print(f"✅ REMINDER EMAIL SENT: {reminder['title']} to {recipient}")
+                return True
+            else:
+                print(f"⚠️ Gmail service not available for reminder: {reminder['title']}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Failed to send reminder email for {reminder['title']}: {e}")
+            return False
+    
+    async def check_and_send_reminders(self) -> Dict[str, Any]:
+        """Check all reminders and send emails for those due soon"""
+        from dateutil import parser
+        import pytz
+        
+        current_time = datetime.now(pytz.UTC)
+        sent_count = 0
+        checked_count = 0
+        
+        for reminder in self.reminders:
+            if reminder.get('completed', False):
+                continue  # Skip completed reminders
+            
+            if reminder.get('reminder_sent', False):
+                continue  # Skip if reminder already sent
+            
+            checked_count += 1
+            
+            try:
+                # Parse due date
+                due_date = parser.parse(reminder['due_date'])
+                if due_date.tzinfo is None:
+                    due_date = due_date.replace(tzinfo=pytz.UTC)
+                
+                # Calculate reminder time
+                reminder_time = due_date - timedelta(hours=self.config.HOURS_BEFORE_REMINDER)
+                
+                # Check if it's time to send reminder
+                if current_time >= reminder_time and current_time <= due_date:
+                    success = await self._send_reminder_email(reminder)
+                    if success:
+                        # Mark reminder as sent
+                        reminder['reminder_sent'] = True
+                        reminder['reminder_sent_at'] = current_time.isoformat()
+                        sent_count += 1
+                        
+            except Exception as e:
+                print(f"Error checking reminder {reminder.get('title', 'Unknown')}: {e}")
+        
+        # Save updated reminders
+        if sent_count > 0:
+            self._save_reminders()
+        
+        return {
+            "checked": checked_count,
+            "sent": sent_count,
+            "current_time": current_time.isoformat()
+        }
     
     async def execute(self, action: str, parameters: Dict[str, Any]) -> ToolResult:
         if action == "create":
@@ -1309,6 +1551,9 @@ class ReminderTool(BaseTool):
             description = parameters.get("description", "")
             priority = parameters.get("priority", "medium")
             
+            # Calculate when to send reminder email
+            reminder_time = self._calculate_reminder_time(due_date) if due_date else None
+            
             reminder = {
                 "id": f"reminder_{int(time.time())}",
                 "title": title,
@@ -1316,6 +1561,8 @@ class ReminderTool(BaseTool):
                 "due_date": due_date,
                 "priority": priority,
                 "completed": False,
+                "reminder_sent": False,
+                "reminder_time": reminder_time,
                 "created_at": datetime.now().isoformat()
             }
             
@@ -1346,6 +1593,18 @@ class ReminderTool(BaseTool):
                     "total_count": len(filtered_reminders)
                 },
                 message=f"Retrieved {len(filtered_reminders)} reminders",
+                tool_name=self.name,
+                action_name=action
+            )
+        
+        elif action == "check_reminders":
+            # Check all reminders and send emails for those due soon
+            results = await self.check_and_send_reminders()
+            
+            return ToolResult(
+                success=True,
+                data=results,
+                message=f"Checked {results['checked']} reminders, sent {results['sent']} emails",
                 tool_name=self.name,
                 action_name=action
             )

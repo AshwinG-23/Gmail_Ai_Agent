@@ -53,8 +53,8 @@ class Config:
     NOTIFICATION_EMAIL: str = os.getenv("NOTIFICATION_EMAIL", "")
     URGENT_NOTIFICATION_WEBHOOK: str = os.getenv("URGENT_NOTIFICATION_WEBHOOK", "")
     
-    # Security
-    SECRET_KEY: str = os.getenv("GENERIC_SECRET_PLACEHOLDER)
+    # Reminder Configuration
+    HOURS_BEFORE_REMINDER: int = int(os.getenv("HOURS_BEFORE_REMINDER", "24"))
     
     # Development
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"

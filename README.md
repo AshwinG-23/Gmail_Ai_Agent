@@ -4,6 +4,11 @@
 ![Python](https://img.shields.io/badge/python-3.10+-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
+## Author
+
+Ashwin Gaikwad - IIT Goa - Btech. Mathematics and Computing
+
+
 An autonomous AI-powered email management system designed specifically for university students and professionals. The system combines **  personally trained models** (DistilBERT classifier + Llama 3 extractor) with Gemini AI for intelligent email processing that understands your specific patterns and preferences.
 
 ## 🎯 Key Features
@@ -114,6 +119,18 @@ LoraConfig(
 - **Output**: Execution plans, tool selection, workflow coordination
 - **Advantage**: Focuses on what it does best while   models handle domain-specific tasks
 - **🎯 Role**: Creates execution plans based on   models' analysis
+
+## 🛠️ Available Tools
+
+After email classification and data extraction, the system can perform these automated actions:
+
+- **📅 Calendar Events** - Auto-create calendar events from meeting invites and deadlines
+- **📊 Job Tracking** - Add job applications to Google Sheets with structured data
+- **🏷️ Smart Labeling** - Apply category-based Gmail labels (AI-Urgent, AI-Jobs, etc.)
+- **🔔 Notifications** - Send urgent alerts for time-sensitive emails
+- **⏰ Reminders** - Create personal reminders for important deadlines
+- **📧 Email Actions** - Mark as read, archive, reply, or forward emails
+- **📋 Data Sheets** - Update spreadsheets with extracted information
 
 ## 🚀 Installation & Setup
 
@@ -273,12 +290,27 @@ python inference_extractor.py  # Test structured extraction
 
 ## 📊 Performance Metrics
 
-### Email Classification Results (  DistilBERT)
-- **Training Accuracy**: 96.2% (on   emails)
-- **Validation Accuracy**: 95.1% (personal patterns)
-- **F1-Score**: 0.94 (weighted average)
-- **Processing Speed**: ~0.3s per email
-- **Personal Advantage**: Trained specifically on   email habits
+# 🤖 Model Performance
+
+## 🧠 Model 1: DistilBERT Email Classifier
+
+This model acts as a rapid triage agent, sorting incoming emails into predefined categories.
+
+- **Validation Accuracy**: **96.1%**
+- **F1-Score**: **0.96** (weighted average)
+- **Processing Speed**: Extremely fast, at approximately **0.006 seconds per email**.
+- **Advantage**: Fine-tuned on personal email data to accurately recognize specific patterns and categories relevant to university life.
+
+## 📝 Model 2: Llama 3 JSON Extractor
+
+This model acts as a specialist agent, pulling structured information from emails that have been categorized by Model 1.
+
+*For this generative task, accuracy is measured differently to reflect the model's ability to create structured data.*
+
+- **JSON Validity Rate**: **100%**
+- **Exact Match Rate**: **26.3%**
+- **F1-Score**: **0.69** (Field-Level) (Can be improved further)
+- **Advantage**: Fine-tuned to extract information into specific JSON schemas tailored to the user's needs (e.g., academic events, job recruitment).
 
 ### System Performance
 - **Email Processing Rate**: ~20 emails/minute

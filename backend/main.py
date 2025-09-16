@@ -352,7 +352,7 @@ IMPORTANT:
                 
                 # Automatically add email_id for EmailTool operations that need it
                 if tool_name == "EmailTool":
-                    email_tool_actions_needing_id = ["add_label", "remove_label", "mark_read", "mark_unread", "archive", "delete"]
+                    email_tool_actions_needing_id = ["add_label", "remove_label", "mark_read", "mark_unread", "archive", "delete", "apply_category_label"]
                     if action in email_tool_actions_needing_id and "email_id" not in parameters:
                         parameters["email_id"] = email.id
                         print(f"🔧 AUTO-ADDED email_id: {email.id} for {tool_name}.{action}")
@@ -597,6 +597,10 @@ class EmailAgent:
         print(f"🚀 Started monitoring for NEW emails received after: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"📧 Email check interval: {config.EMAIL_CHECK_INTERVAL} seconds")
         
+        # Track reminder check timing
+        last_reminder_check = datetime.now()
+        reminder_check_interval = 3600  # Check reminders every hour
+        
         while self.is_running:
             try:
                 self.current_task = "Checking for new emails..."
@@ -645,6 +649,30 @@ class EmailAgent:
                         print(f"✅ No new emails found (checked {len(all_emails)} recent emails)")
                 else:
                     print(f"⚠️ Failed to fetch recent emails: {result.message}")
+                
+                # Check reminders periodically (every hour)
+                current_time = datetime.now()
+                if (current_time - last_reminder_check).total_seconds() >= reminder_check_interval:
+                    try:
+                        self.current_task = "Checking reminders..."
+                        print(f"⏰ Checking reminders for due dates...")
+                        
+                        reminder_result = await self.brain.tools.execute_tool(
+                            "ReminderTool",
+                            "check_reminders",
+                            {}
+                        )
+                        
+                        if reminder_result.success:
+                            data = reminder_result.data
+                            print(f"✅ Reminder check complete: {data['checked']} checked, {data['sent']} emails sent")
+                        else:
+                            print(f"⚠️ Reminder check failed: {reminder_result.message}")
+                            
+                        last_reminder_check = current_time
+                        
+                    except Exception as reminder_error:
+                        print(f"💥 Error checking reminders: {reminder_error}")
                 
                 self.current_task = None
                 
@@ -707,92 +735,85 @@ class AgentDatabase:
             json.dump(self.data, f, indent=2, default=str)
     
     def log_agent_session(self, session: AgentSession):
-        """Log a complete agent session"""
-        session_dict = session.dict()
-        
-        # Convert datetime objects to strings for JSON serialization
-        for key, value in session_dict.items():
-            if isinstance(value, datetime):
-                session_dict[key] = value.isoformat()
+        """Log a simplified agent session"""
+        # Create compact log entry - NO VERBOSE EMAIL CONTENT
+        compact_log = {
+            "session_id": session.session_id,
+            "timestamp": session.created_at.isoformat() if session.created_at else datetime.now().isoformat(),
+            "email_id": session.email.id,
+            "subject": session.email.subject[:100] + "..." if len(session.email.subject) > 100 else session.email.subject,
+            "sender": session.email.sender_email or session.email.sender,
+            "category": session.decision.category.value,
+            "priority": session.decision.priority.value,
+            "confidence": session.decision.confidence_score,
+            "actions_taken": [f"{ex.tool}.{ex.action}" for ex in session.executions],
+            "success_count": sum(1 for ex in session.executions if ex.success),
+            "total_steps": len(session.executions),
+            "success_rate": session.success_rate,
+            "execution_time_ms": session.total_execution_time_ms,
+            "status": session.final_status
+        }
         
         # Ensure sessions key exists
         if "sessions" not in self.data:
             self.data["sessions"] = []
         
-        self.data["sessions"].append(session_dict)
-        self.update_stats(session)
+        self.data["sessions"].append(compact_log)
+        self.update_stats_simple(session)
         self.save()
     
-    def update_stats(self, session: AgentSession):
-        """Update performance statistics"""
+    def update_stats_simple(self, session: AgentSession):
+        """Update simplified performance statistics"""
         # Ensure required keys exist
-        if "tool_stats" not in self.data:
-            self.data["tool_stats"] = {}
-        if "performance" not in self.data:
-            self.data["performance"] = {}
-            
-        category = session.decision.category.value
-        
-        if category not in self.data["tool_stats"]:
-            self.data["tool_stats"][category] = {
-                "count": 0,
+        if "summary" not in self.data:
+            self.data["summary"] = {
+                "total_processed": 0,
+                "categories": {},
                 "success_rate": 0,
-                "avg_execution_time": 0,
-                "avg_steps": 0
+                "avg_time_ms": 0
             }
         
-        stats = self.data["tool_stats"][category]
-        stats["count"] += 1
+        summary = self.data["summary"]
+        summary["total_processed"] += 1
+        
+        # Track by category
+        category = session.decision.category.value
+        if category not in summary["categories"]:
+            summary["categories"][category] = 0
+        summary["categories"][category] += 1
         
         # Update running averages
-        old_count = stats["count"] - 1
-        stats["success_rate"] = (stats["success_rate"] * old_count + session.success_rate) / stats["count"]
-        stats["avg_execution_time"] = (stats["avg_execution_time"] * old_count + session.total_execution_time_ms) / stats["count"]
-        stats["avg_steps"] = (stats["avg_steps"] * old_count + len(session.executions)) / stats["count"]
-        
-        # Update tool usage stats
-        for execution in session.executions:
-            tool_name = execution.tool
-            if tool_name not in self.data["performance"]:
-                self.data["performance"][tool_name] = {
-                    "usage_count": 0,
-                    "success_count": 0,
-                    "avg_execution_time": 0
-                }
-            
-            perf = self.data["performance"][tool_name]
-            perf["usage_count"] += 1
-            if execution.success:
-                perf["success_count"] += 1
-            
-            if execution.execution_time_ms:
-                old_usage = perf["usage_count"] - 1
-                perf["avg_execution_time"] = (perf["avg_execution_time"] * old_usage + execution.execution_time_ms) / perf["usage_count"]
+        old_count = summary["total_processed"] - 1
+        if old_count > 0:
+            summary["success_rate"] = (summary["success_rate"] * old_count + session.success_rate) / summary["total_processed"]
+            summary["avg_time_ms"] = (summary["avg_time_ms"] * old_count + session.total_execution_time_ms) / summary["total_processed"]
+        else:
+            summary["success_rate"] = session.success_rate
+            summary["avg_time_ms"] = session.total_execution_time_ms
     
     def get_recent_sessions(self, limit: int = 10) -> List[Dict]:
         """Get recent agent sessions"""
         return self.data["sessions"][-limit:]
     
     def get_stats(self) -> Dict[str, Any]:
-        """Get comprehensive statistics"""
-        total_sessions = len(self.data["sessions"])
-        
-        if total_sessions == 0:
+        """Get simplified statistics"""
+        if not self.data["sessions"]:
             return {
                 "total_processed": 0,
                 "average_success_rate": 0,
-                "last_activity": None
+                "last_activity": None,
+                "categories": {}
             }
         
-        recent_sessions = self.data["sessions"][-10:]
-        avg_success_rate = sum(s.get("success_rate", 0) for s in recent_sessions) / len(recent_sessions)
+        summary = self.data.get("summary", {})
+        last_session = self.data["sessions"][-1]
         
         return {
-            "total_processed": total_sessions,
-            "average_success_rate": avg_success_rate,
-            "last_activity": self.data["sessions"][-1].get("completed_at") if self.data["sessions"] else None,
-            "tool_stats": self.data["tool_stats"],
-            "performance": self.data["performance"]
+            "total_processed": summary.get("total_processed", len(self.data["sessions"])),
+            "average_success_rate": summary.get("success_rate", 0),
+            "last_activity": last_session.get("timestamp"),
+            "categories": summary.get("categories", {}),
+            "avg_execution_time_ms": summary.get("avg_time_ms", 0)
         }
 
 # ==================== FASTAPI APPLICATION ====================
