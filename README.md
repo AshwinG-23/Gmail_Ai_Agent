@@ -43,36 +43,7 @@ An autonomous AI-powered email management system designed specifically for unive
 
 ## 🏗️ System Architecture
 
-```
-🚀 NEW WORKFLOW:   MODELS + GEMINI ORCHESTRATION
-
-1️⃣ NEW EMAIL ARRIVES
-         │
-         ↓
-2️⃣   DISTILBERT CLASSIFIER (trained on 5,678   emails)
-         │
-    [🎩 95.1% accuracy]
-         │
-         ↓
-3️⃣   LLAMA 3 + LORA EXTRACTOR (fine-tuned for   patterns)
-         │
-    [🤖 Structured data]
-         │
-         ↓
-4️⃣ GEMINI ORCHESTRATION (planning based on   results)
-         │
-    [📋 Execution plan]
-         │
-         ↓
-┌──────────────┴──────────────────────┴────────────────┐
-│   Gmail API     │       Tool Execution         │  Chrome Ext.    │
-│                 │                              │   (UI/UX)       │
-│ • Email Monitor │    • Google Calendar         │ • Draft Gen.    │
-│ • Smart Labels  │    • Google Sheets           │ • Log Export    │
-│ • Actions       │    • Notifications           │ • Style Match   │
-└─────────────────┘    • Reminders               └─────────────────┘
-                        • Job Tracking
-```
+![System Flow](flow.png)
 
 ## 🤖 AI Models & Training
 
