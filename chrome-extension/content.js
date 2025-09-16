@@ -1,10 +1,9 @@
-// AI Email Agent - Content Script for Gmail Integration
-console.log('AI Email Agent content script loaded on Gmail');
+// Simple AI Email Rewriter - Content Script
+console.log('Simple AI Email Rewriter loaded on Gmail');
 
 // Configuration
-let isGmailLoaded = false;
-let composeElements = new Set();
-let aiModal = null;
+const API_BASE_URL = 'http://localhost:8000';
+let isInitialized = false;
 
 // Initialize when Gmail is ready
 function initializeAIAgent() {

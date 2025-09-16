@@ -98,34 +98,34 @@ EXAMPLE RESPONSES:
 
 ## Example 1: Job Application Email
 {{
-    "reasoning": "This is a job application confirmation email that should be tracked",
+    "reasoning": "This is a job application confirmation email that should be tracked in spreadsheet",
     "priority": "medium",
     "category": "job",
     "confidence_score": 0.9,
     "execution_plan": [
         {{
             "step": 1,
-            "tool": "EmailClassifier",
-            "action": "classify",
-            "parameters": {{"text": "email body text here"}},
-            "rationale": "Classify the email to confirm category"
+            "tool": "DataExtractor",
+            "action": "extract_jobs",
+            "parameters": {{}},
+            "rationale": "Extract job details using trained Llama 3 model"
         }},
         {{
             "step": 2,
-            "tool": "DataExtractor",
-            "action": "extract_job_info",
-            "parameters": {{}},
-            "rationale": "Extract job details for tracking"
+            "tool": "SheetsTool",
+            "action": "add_job",
+            "parameters": {{"job_data": "extracted_from_step_1"}},
+            "rationale": "Add job application to Google Sheets tracker"
         }},
         {{
             "step": 3,
             "tool": "EmailTool",
-            "action": "add_label",
-            "parameters": {{"label_name": "AI-Jobs"}},
-            "rationale": "Label email for organization"
+            "action": "apply_category_label",
+            "parameters": {{"category": "job"}},
+            "rationale": "Apply AI-Jobs label for organization"
         }}
     ],
-    "expected_outcome": "Email classified, job info extracted and tracked"
+    "expected_outcome": "Job details extracted and added to tracking spreadsheet with proper labeling"
 }}
 
 ## Example 2: Conference Invitation
@@ -325,10 +325,6 @@ IMPORTANT:
         
         replaced_params = {k: replace_value(v) for k, v in parameters.items()}
         
-        # Debug logging
-        if replaced_params != parameters:
-            print(f"📋 PARAMETERS BEFORE: {parameters}")
-            print(f"📋 PARAMETERS AFTER:  {replaced_params}")
         
         return replaced_params
     
@@ -362,6 +358,26 @@ IMPORTANT:
                 # Add email context to parameters if needed for other tools
                 if "email" not in parameters and tool_name != "EmailTool":
                     parameters["email"] = email.dict()
+                
+                # Handle special data passing between tools
+                if tool_name == "SheetsTool" and action == "add_job":
+                    # Look for extracted job data from DataExtractor in previous steps
+                    for prev_step, prev_result in context["previous_results"].items():
+                        if "extracted" in prev_result:
+                            # Use extracted data as job_data
+                            parameters["job_data"] = prev_result["extracted"]
+                            print(f"🔗 USING extracted data from {prev_step} for SheetsTool")
+                            break
+                
+                # Generic parameter replacement for previous step results
+                for param_key, param_value in parameters.items():
+                    if isinstance(param_value, str) and param_value.startswith("extracted_from_step_"):
+                        step_num = param_value.replace("extracted_from_step_", "")
+                        step_key = f"step_{step_num}"
+                        if step_key in context["previous_results"]:
+                            if "extracted" in context["previous_results"][step_key]:
+                                parameters[param_key] = context["previous_results"][step_key]["extracted"]
+                                print(f"🔄 REPLACED {param_key} with extracted data from {step_key}")
                 
                 # Add previous results to context for dependent operations
                 parameters["context"] = context["previous_results"]
@@ -999,6 +1015,86 @@ async def generate_draft(request: DraftRequest):
     """Generate email draft using the agent brain"""
     response = await agent.brain.generate_email_draft(request)
     return response.dict()
+
+# Simple email rewriter endpoint
+@app.post("/api/rewrite-email")
+async def rewrite_email(request: dict):
+    """Simple email rewriter endpoint for Chrome extension"""
+    try:
+        original_content = request.get("original_content", "")
+        tone = request.get("tone", "professional")
+        
+        if not original_content.strip():
+            raise HTTPException(status_code=400, detail="Original content is required")
+        
+        # Create a structured prompt for Gemini
+        prompt = f"""
+Rewrite this email to make it properly formatted and {tone}. Return your response as valid JSON with "subject" and "body" fields.
+
+Original email:
+{original_content}
+
+Instructions:
+1. Improve grammar, tone, and clarity to make it {tone}
+2. Generate an appropriate subject line
+3. Format the body with proper professional structure:
+   - Start with "Dear Sir," or "Dear Madam," (choose appropriately based on context)
+   - Clear, well-structured content in the middle
+   - End with "Yours sincerely," on a new line
+   - Add a blank line after "Yours sincerely," for signature
+4. Use proper line breaks between sections
+5. Keep the core message and intent intact
+
+Example format for body:
+Dear Sir,
+
+[Professional content here]
+
+Yours sincerely,
+
+Return ONLY valid JSON in this format:
+{{
+  "subject": "Clear and professional subject line",
+  "body": "Dear Sir,\n\n[Professional content]\n\nYours sincerely,\n"
+}}
+        """.strip()
+        
+        # Use Gemini to rewrite
+        response = agent.brain.model.generate_content(prompt)
+        response_text = response.text.strip()
+        
+        # Parse JSON response
+        try:
+            # Extract JSON from response (in case there's extra text)
+            start_idx = response_text.find('{')
+            end_idx = response_text.rfind('}') + 1
+            
+            if start_idx != -1 and end_idx > start_idx:
+                json_str = response_text[start_idx:end_idx]
+                rewritten_data = json.loads(json_str)
+            else:
+                raise ValueError("No JSON found in response")
+            
+            return {
+                "success": True,
+                "original_content": original_content,
+                "rewritten_subject": rewritten_data.get("subject", "Professional Email"),
+                "rewritten_body": rewritten_data.get("body", response_text),
+                "tone": tone
+            }
+            
+        except (json.JSONDecodeError, ValueError) as e:
+            # Fallback: use raw response as body
+            return {
+                "success": True,
+                "original_content": original_content,
+                "rewritten_subject": "Professional Email",
+                "rewritten_body": response_text,
+                "tone": tone
+            }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Rewrite failed: {str(e)}")
 
 @app.get("/api/chrome/agent-status")
 def get_chrome_agent_status():
