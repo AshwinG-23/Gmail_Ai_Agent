@@ -6,8 +6,9 @@
 
 ## Author
 
-Ashwin Gaikwad - IIT Goa - Btech. Mathematics and Computing
+Ashwin Gaikwad - IIT Goa - Btech. Mathematics and Computing. 
 All needed Delivereables are added as .pdfs. 
+
 [Demo Video](https://drive.google.com/file/d/1mxGFy-MB_vP7VF0FCzeeW5MICVq9w7pX/view?usp=sharing)
 
 An autonomous AI-powered email management system designed specifically for university students and professionals. The system combines **  personally trained models** (DistilBERT classifier + Llama 3 extractor) with Gemini AI for intelligent email processing that understands your specific patterns and preferences.
